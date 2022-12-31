@@ -34,7 +34,12 @@ impl AsyncQueue {
 
             // Just fail fast if the debug validation scope was invalidated
             #[cfg(debug_assertions)]
-            pollster::block_on(device_ref.as_ref().pop_error_scope()).expect("validation error");
+            {
+                let err = pollster::block_on(device_ref.as_ref().pop_error_scope());
+                if let Some(err) = err {
+                    panic!("Validation error: {}", err)
+                }
+            }
 
             queue_ref.on_submitted_work_done(|| callback(()));
         })
