@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 wgpu = "0.14"
 futures = "0.3"
+anyhow = "1.0"
+pollster = "0.2"

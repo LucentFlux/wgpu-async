@@ -1,10 +1,24 @@
 use crate::async_buffer::AsyncBuffer;
+use std::fmt::Display;
 use std::future::Future;
 use std::ops::DerefMut;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
 use wgpu::{BufferDescriptor, Device, Maintain};
+
+#[derive(Debug)]
+pub struct OutOfMemoryError {
+    source: Box<dyn std::error::Error + Send>,
+}
+
+impl Display for OutOfMemoryError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.source.fmt(f)
+    }
+}
+
+impl std::error::Error for OutOfMemoryError {}
 
 #[derive(Clone, Debug)]
 pub struct AsyncDevice {
@@ -28,9 +42,25 @@ impl AsyncDevice {
         future
     }
 
-    pub fn create_buffer(&self, desc: &BufferDescriptor) -> AsyncBuffer {
+    pub async fn create_buffer<'a>(
+        &self,
+        desc: &BufferDescriptor<'a>,
+    ) -> Result<AsyncBuffer, OutOfMemoryError> {
+        self.device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
+
         let buffer = self.device.create_buffer(desc);
-        AsyncBuffer::new(self.clone(), buffer)
+
+        if let Some(e) = self.device.pop_error_scope().await {
+            match e {
+                wgpu::Error::OutOfMemory { source } => return Err(OutOfMemoryError { source }),
+                wgpu::Error::Validation {
+                    source: _,
+                    description: _,
+                } => unreachable!(),
+            }
+        }
+
+        Ok(AsyncBuffer::new(self.clone(), buffer))
     }
 }
 
