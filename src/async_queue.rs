@@ -22,27 +22,17 @@ impl AsyncQueue {
         command_buffers: I,
     ) -> WgpuFuture<()> {
         let queue_ref = self.queue.clone();
-        let device_ref = self.device.clone();
-        self.device.do_async(move |callback| {
-            // We add validation on debug builds
-            #[cfg(debug_assertions)]
-            device_ref
-                .as_ref()
-                .push_error_scope(wgpu::ErrorFilter::Validation);
 
-            queue_ref.submit(command_buffers);
+        self.device.with_debug_validation(
+            move || {
+                self.device.do_async(move |callback| {
+                    queue_ref.submit(command_buffers);
 
-            // Just fail fast if the debug validation scope was invalidated
-            #[cfg(debug_assertions)]
-            {
-                let err = pollster::block_on(device_ref.as_ref().pop_error_scope());
-                if let Some(err) = err {
-                    panic!("Validation error: {}", err)
-                }
-            }
-
-            queue_ref.on_submitted_work_done(|| callback(()));
-        })
+                    queue_ref.on_submitted_work_done(|| callback(()));
+                })
+            },
+            "command execution",
+        )
     }
 }
 

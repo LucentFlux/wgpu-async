@@ -42,25 +42,68 @@ impl AsyncDevice {
         future
     }
 
+    /// Runs a closure with validation if we are a debug build, or without validation if we aren't
+    pub fn with_debug_validation<R>(&self, f: impl FnOnce() -> R, debug_str: &str) -> R {
+        #[cfg(debug_assertions)]
+        self.device.push_error_scope(wgpu::ErrorFilter::Validation);
+
+        let ret = f();
+
+        #[cfg(debug_assertions)]
+        if let Some(err) = pollster::block_on(self.device.pop_error_scope()) {
+            panic!("Validation error on {}: {}", debug_str, err)
+        }
+
+        return ret;
+    }
+
+    /// Runs an async closure with validation if we are a debug build, or without validation if we aren't
+    pub async fn with_debug_validation_async<R>(
+        &self,
+        f: impl Future<Output = R>,
+        debug_str: &str,
+    ) -> R {
+        #[cfg(debug_assertions)]
+        self.device.push_error_scope(wgpu::ErrorFilter::Validation);
+
+        let ret = f.await;
+
+        #[cfg(debug_assertions)]
+        if let Some(err) = self.device.pop_error_scope().await {
+            panic!("Validation error on {}: {}", debug_str, err)
+        }
+
+        return ret;
+    }
+
     pub async fn create_buffer<'a>(
         &self,
         desc: &BufferDescriptor<'a>,
     ) -> Result<AsyncBuffer, OutOfMemoryError> {
-        self.device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
+        self.with_debug_validation_async(
+            async {
+                self.device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
 
-        let buffer = self.device.create_buffer(desc);
+                let buffer = self.device.create_buffer(desc);
 
-        if let Some(e) = self.device.pop_error_scope().await {
-            match e {
-                wgpu::Error::OutOfMemory { source } => return Err(OutOfMemoryError { source }),
-                wgpu::Error::Validation {
-                    source: _,
-                    description: _,
-                } => unreachable!(),
-            }
-        }
+                // Pop OOM first
+                if let Some(e) = self.device.pop_error_scope().await {
+                    match e {
+                        wgpu::Error::OutOfMemory { source } => {
+                            return Err(OutOfMemoryError { source })
+                        }
+                        wgpu::Error::Validation {
+                            source: _,
+                            description: _,
+                        } => unreachable!(),
+                    }
+                }
 
-        Ok(AsyncBuffer::new(self.clone(), buffer))
+                Ok(AsyncBuffer::new(self.clone(), buffer))
+            },
+            "buffer creation",
+        )
+        .await
     }
 }
 
