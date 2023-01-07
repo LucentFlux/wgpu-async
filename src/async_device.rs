@@ -3,8 +3,10 @@ use std::fmt::Display;
 use std::future::Future;
 use std::ops::DerefMut;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
+use std::thread::JoinHandle;
 use wgpu::{BufferDescriptor, Device, Maintain};
 
 #[derive(Debug)]
@@ -20,15 +22,64 @@ impl Display for OutOfMemoryError {
 
 impl std::error::Error for OutOfMemoryError {}
 
+/// Polls the device whilever a future says there is something to poll
+#[derive(Debug)]
+pub(crate) struct PollLoop {
+    has_work: Arc<AtomicBool>,
+    is_done: Arc<AtomicBool>,
+    handle: JoinHandle<()>,
+}
+
+impl PollLoop {
+    fn new(device: Arc<Device>) -> Self {
+        let has_work = Arc::new(AtomicBool::new(false));
+        let is_done = Arc::new(AtomicBool::new(false));
+        let locally_has_work = has_work.clone();
+        let locally_is_done = is_done.clone();
+        Self {
+            has_work,
+            is_done,
+            handle: std::thread::spawn(move || {
+                while !locally_is_done.load(Ordering::Acquire) {
+                    while locally_has_work.swap(false, Ordering::AcqRel) {
+                        while !device.poll(Maintain::Wait) {}
+                    }
+
+                    std::thread::park();
+                }
+            }),
+        }
+    }
+
+    pub fn start_polling(&self) {
+        // On the web, we don't poll, so don't do anything
+        #[cfg(target_arch = "wasm32")]
+        return;
+
+        self.has_work.store(true, Ordering::Release);
+        self.handle.thread().unpark()
+    }
+}
+
+impl Drop for PollLoop {
+    fn drop(&mut self) {
+        self.is_done.store(true, Ordering::Release);
+        self.handle.thread().unpark()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct AsyncDevice {
     device: Arc<Device>,
+    poll_loop: Arc<PollLoop>,
 }
 
 impl AsyncDevice {
     pub fn new(device: Device) -> Self {
+        let device = Arc::new(device);
         Self {
-            device: Arc::new(device),
+            poll_loop: Arc::new(PollLoop::new(device.clone())),
+            device,
         }
     }
 
@@ -37,7 +88,7 @@ impl AsyncDevice {
         F: FnOnce(Box<dyn FnOnce(R) + Send>),
         R: Send + 'static,
     {
-        let future = WgpuFuture::new(self.device.clone());
+        let future = WgpuFuture::new(self.device.clone(), self.poll_loop.clone());
         f(future.callback());
         future
     }
@@ -127,13 +178,15 @@ struct WgpuFutureSharedState<T> {
 
 pub struct WgpuFuture<T> {
     device: Arc<Device>,
+    poll_loop: Arc<PollLoop>,
     state: Arc<Mutex<WgpuFutureSharedState<T>>>,
 }
 
 impl<T: Send + 'static> WgpuFuture<T> {
-    pub fn new(device: Arc<Device>) -> Self {
+    pub(crate) fn new(device: Arc<Device>, poll_loop: Arc<PollLoop>) -> Self {
         Self {
             device,
+            poll_loop,
             state: Arc::new(Mutex::new(WgpuFutureSharedState {
                 result: None,
                 waker: None,
@@ -176,8 +229,8 @@ impl<T> Future for WgpuFuture<T> {
             lock.waker = Some(cx.waker().clone());
         }
 
-        // Treat as green thread - we pass back but are happy to sit in a spin loop and poll
-        cx.waker().wake_by_ref();
+        // If we're not ready, make sure the poll loop is running
+        self.poll_loop.start_polling();
 
         return Poll::Pending;
     }
