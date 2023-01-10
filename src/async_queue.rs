@@ -1,5 +1,5 @@
 use crate::async_device::{AsyncDevice, WgpuFuture};
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 use wgpu::{CommandBuffer, Queue};
 
 #[derive(Clone, Debug)]
@@ -36,8 +36,11 @@ impl AsyncQueue {
     }
 }
 
-impl AsRef<Queue> for AsyncQueue {
-    fn as_ref(&self) -> &Queue {
+// We're a smart pointer. Let everyone access our inner device.
+impl Deref for AsyncQueue {
+    type Target = wgpu::Queue;
+
+    fn deref(&self) -> &Self::Target {
         &self.queue
     }
 }

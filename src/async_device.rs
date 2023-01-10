@@ -1,7 +1,7 @@
 use crate::async_buffer::AsyncBuffer;
 use std::fmt::Display;
 use std::future::Future;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -158,9 +158,12 @@ impl AsyncDevice {
     }
 }
 
-impl AsRef<Device> for AsyncDevice {
-    fn as_ref(&self) -> &Device {
-        return self.device.as_ref();
+// We're a smart pointer. Let everyone access our inner device.
+impl Deref for AsyncDevice {
+    type Target = wgpu::Device;
+
+    fn deref(&self) -> &Self::Target {
+        &self.device
     }
 }
 

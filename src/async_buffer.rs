@@ -1,6 +1,6 @@
 use crate::async_device::AsyncDevice;
 use futures::{Future, FutureExt};
-use std::ops::RangeBounds;
+use std::ops::{Deref, DerefMut, RangeBounds};
 use wgpu::{Buffer, BufferAddress, BufferAsyncError, BufferSlice, MapMode};
 
 #[derive(Debug)]
@@ -32,8 +32,17 @@ impl AsyncBuffer {
     }
 }
 
-impl AsRef<Buffer> for AsyncBuffer {
-    fn as_ref(&self) -> &Buffer {
+// We're a smart pointer. Let everyone access our inner device.
+impl Deref for AsyncBuffer {
+    type Target = wgpu::Buffer;
+
+    fn deref(&self) -> &Self::Target {
         &self.buffer
+    }
+}
+
+impl DerefMut for AsyncBuffer {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.buffer
     }
 }
