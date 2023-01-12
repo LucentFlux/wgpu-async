@@ -156,6 +156,18 @@ impl AsyncDevice {
         )
         .await
     }
+
+    /// Shorthand for [`AsyncDevice::create_buffer`] that can't fail and that doesn't need
+    /// to be awaited, since an empty allocation can't fail and takes no time.
+    pub fn create_empty_buffer(&self) -> AsyncBuffer {
+        let buffer = self.device.create_buffer(&BufferDescriptor {
+            label: None,
+            size: 0,
+            usage: wgpu::BufferUsages::all(),
+            mapped_at_creation: false,
+        });
+        AsyncBuffer::new(self.clone(), buffer)
+    }
 }
 
 // We're a smart pointer. Let everyone access our inner device.
