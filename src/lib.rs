@@ -23,18 +23,18 @@ pub use async_queue::AsyncQueue;
 /// #       force_fallback_adapter: true,
 ///     })
 ///     .await
-///     .unwrap();
+///     .expect("missing adapter");
 /// let (device, queue) = adapter
 ///     .request_device(
 ///         &wgpu::DeviceDescriptor {
 ///             features: wgpu::Features::empty(),
-///             limits: wgpu::Limits::default(),
+///             limits: adapter.limits(),
 ///             label: None,
 ///         },
 ///         None,
 ///     )
 ///     .await
-///     .unwrap();
+///     .expect("missing device");
 ///
 /// let (device, queue) = wgpu_async::wrap_wgpu(device, queue);
 /// # })
