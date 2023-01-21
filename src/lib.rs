@@ -20,7 +20,7 @@ pub use async_queue::AsyncQueue;
 ///     .request_adapter(&wgpu::RequestAdapterOptions {
 ///         power_preference: wgpu::PowerPreference::HighPerformance,
 ///         compatible_surface: None,
-///         force_fallback_adapter: false,
+/// #       force_fallback_adapter: true,
 ///     })
 ///     .await
 ///     .unwrap();
