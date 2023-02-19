@@ -34,6 +34,10 @@ impl AsyncQueue {
             "command execution",
         )
     }
+
+    pub fn device(&self) -> &AsyncDevice {
+        &self.device
+    }
 }
 
 // We're a smart pointer. Let everyone access our inner device.
