@@ -11,7 +11,7 @@ use wgpu::{BufferDescriptor, Device, Maintain};
 
 #[derive(Debug)]
 pub struct OutOfMemoryError {
-    source: Box<dyn std::error::Error + Send>,
+    pub source: Box<dyn std::error::Error + Send>,
 }
 
 impl Display for OutOfMemoryError {
@@ -159,9 +159,13 @@ impl AsyncDevice {
 
     /// Shorthand for [`AsyncDevice::create_buffer`] that can't fail and that doesn't need
     /// to be awaited, since an empty allocation can't fail and takes no time.
-    pub fn create_empty_buffer(&self, usage: wgpu::BufferUsages) -> AsyncBuffer {
+    pub fn create_empty_buffer(
+        &self,
+        usage: wgpu::BufferUsages,
+        label: Option<&str>,
+    ) -> AsyncBuffer {
         let buffer = self.device.create_buffer(&BufferDescriptor {
-            label: None,
+            label,
             size: 0,
             usage,
             mapped_at_creation: false,
