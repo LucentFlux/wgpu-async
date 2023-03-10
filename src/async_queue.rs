@@ -25,9 +25,9 @@ impl AsyncQueue {
 
         self.device.with_debug_validation(
             move || {
-                self.device.do_async(move |callback| {
-                    queue_ref.submit(command_buffers);
+                queue_ref.submit(command_buffers);
 
+                self.device.do_async(move |callback| {
                     queue_ref.on_submitted_work_done(|| callback(()));
                 })
             },

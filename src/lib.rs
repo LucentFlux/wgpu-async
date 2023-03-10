@@ -3,6 +3,7 @@ pub mod async_device;
 pub mod async_queue;
 
 pub use async_buffer::AsyncBuffer;
+pub use async_device::AllocationScope;
 pub use async_device::AsyncDevice;
 pub use async_device::OutOfMemoryError;
 pub use async_device::WgpuFuture;

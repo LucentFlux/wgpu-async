@@ -9,6 +9,15 @@ use std::task::{Context, Poll, Waker};
 use std::thread::JoinHandle;
 use wgpu::{BufferDescriptor, Device, Maintain};
 
+mod sealed {
+    pub(super) struct InternalAllocation;
+}
+
+/// A marker object which can only be obtained by starting an allocation scope. An instance
+/// of this type is used as proof that the following allocations are being performed within
+/// a scope that is checking for Out of Memory errors.
+pub struct AllocationScope(sealed::InternalAllocation);
+
 #[derive(Debug)]
 pub struct OutOfMemoryError {
     pub source: Box<dyn std::error::Error + Send>,
@@ -94,18 +103,13 @@ impl AsyncDevice {
     }
 
     /// Runs a closure with validation if we are a debug build, or without validation if we aren't
+    #[allow(unused_variables)]
     pub fn with_debug_validation<R>(&self, f: impl FnOnce() -> R, debug_str: &str) -> R {
-        #[cfg(debug_assertions)]
-        self.device.push_error_scope(wgpu::ErrorFilter::Validation);
-
-        let ret = f();
+        #[cfg(not(debug_assertions))]
+        return f();
 
         #[cfg(debug_assertions)]
-        if let Some(err) = pollster::block_on(self.device.pop_error_scope()) {
-            panic!("Validation error on {}: {}", debug_str, err)
-        }
-
-        return ret;
+        pollster::block_on(self.with_debug_validation_async(async { f() }, debug_str))
     }
 
     /// Runs an async closure with validation if we are a debug build, or without validation if we aren't
@@ -127,34 +131,96 @@ impl AsyncDevice {
         return ret;
     }
 
+    /// Creates a new buffer, checking for out of memory errors, and validation errors on Debug builds.
+    /// Note that checking OoM takes some non-zero time, so when allocating multiple buffers in a row
+    /// prefer [`AsyncDevice::create_scoped_buffer`]
     pub async fn create_buffer<'a>(
         &self,
         desc: &BufferDescriptor<'a>,
     ) -> Result<AsyncBuffer, OutOfMemoryError> {
+        self.with_allocation_scope(|scope| self.create_buffer_scoped(scope, desc))
+            .await
+    }
+
+    /// Begins an allocation scope checking for out of memory errors, and validation errors on Debug builds.
+    /// Used in conjunction with [`AsyncDevice::create_scoped_buffer`] - see there for more details.
+    pub async fn with_allocation_scope<'a, Ret>(
+        &self,
+        gen: impl FnOnce(&AllocationScope) -> Ret,
+    ) -> Result<Ret, OutOfMemoryError> {
         self.with_debug_validation_async(
             async {
                 self.device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
 
-                let buffer = self.device.create_buffer(desc);
+                let scope = AllocationScope(sealed::InternalAllocation);
+                let res = gen(&scope);
 
                 // Pop OOM first
                 if let Some(e) = self.device.pop_error_scope().await {
                     match e {
-                        wgpu::Error::OutOfMemory { source } => {
-                            return Err(OutOfMemoryError { source })
-                        }
+                        wgpu::Error::OutOfMemory { source } => Err(OutOfMemoryError { source }),
                         wgpu::Error::Validation {
                             source: _,
                             description: _,
                         } => unreachable!(),
                     }
+                } else {
+                    Ok(res)
                 }
-
-                Ok(AsyncBuffer::new(self.clone(), buffer))
             },
-            "buffer creation",
+            "scoped_allocation",
         )
         .await
+    }
+
+    /// An alternative to [`AsyncDevice::create_buffer`] that is still safe, but is also more performant, at the expense of
+    /// more complicated code.
+    ///
+    /// # Usage
+    ///
+    /// First create an allocation scope, and then within that scope allocate several buffers:
+    ///
+    /// ```
+    /// # use wgpu_async::wrap_wgpu;
+    /// # use wgpu::BufferDescriptor;
+    /// # let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+    /// # let adapter = pollster::block_on(instance
+    /// #     .request_adapter(&wgpu::RequestAdapterOptions::default())).unwrap();
+    /// # let (device, queue) = pollster::block_on(adapter
+    /// #     .request_device(
+    /// #         &wgpu::DeviceDescriptor::default(),
+    /// #         None,
+    /// #     ))
+    /// #     .unwrap();
+    /// let (device, queue) = wrap_wgpu(device, queue);
+    /// let (buffer1, buffer2) =
+    /// # pollster::block_on(async {
+    ///     device.with_scope(|scope| {
+    ///         let buffer1 = device.create_scoped_buffer(scope, &wgpu::BufferDescriptor {
+    ///             label: None,
+    ///             size: 1024,
+    ///             usage: wgpu::BufferUsages::STORAGE,
+    ///             mapped_at_creation: false,
+    ///         });
+    ///         let buffer2 = device.create_scoped_buffer(scope, &BufferDescriptor {
+    ///             label: None,
+    ///             size: 64,
+    ///             usage: wgpu::BufferUsages::UNIFORM,
+    ///             mapped_at_creation: false,
+    ///         });
+    ///     
+    ///         (buffer1, buffer2)
+    ///     }).await.unwrap()
+    /// # });
+    /// ```
+    pub fn create_buffer_scoped<'a>(
+        &self,
+        // Proof that we are in an allocation scope that is checking OoM errors
+        _scope: &AllocationScope,
+        desc: &BufferDescriptor<'a>,
+    ) -> AsyncBuffer {
+        let buffer = self.device.create_buffer(desc);
+        AsyncBuffer::new(self.clone(), buffer)
     }
 
     /// Shorthand for [`AsyncDevice::create_buffer`] that can't fail and that doesn't need
