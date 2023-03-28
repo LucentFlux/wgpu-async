@@ -23,7 +23,7 @@ impl AsyncBuffer {
         &'a self,
         bounds: S,
         mode: MapMode,
-    ) -> impl Future<Output = Result<BufferSlice<'a>, BufferAsyncError>> + 'a {
+    ) -> impl Future<Output = Result<BufferSlice<'a>, BufferAsyncError>> + Send + 'a {
         let slice = self.buffer.slice(bounds);
 
         self.device
