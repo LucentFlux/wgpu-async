@@ -40,7 +40,7 @@ pub use async_queue::AsyncQueue;
 /// let (device, queue) = wgpu_async::wrap_wgpu(device, queue);
 /// # })
 /// ```
-pub fn wrap_wgpu(device: wgpu::Device, queue: wgpu::Queue) -> (AsyncDevice, AsyncQueue) {
+pub fn wrap_to_async(device: wgpu::Device, queue: wgpu::Queue) -> (AsyncDevice, AsyncQueue) {
     let device = AsyncDevice::new(device);
     let queue = AsyncQueue::new(device.clone(), queue);
 
