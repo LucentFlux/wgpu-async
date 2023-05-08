@@ -1,6 +1,6 @@
 use crate::async_device::{AsyncDevice, WgpuFuture};
 use std::{ops::Deref, sync::Arc};
-use wgpu::{CommandBuffer, Queue};
+use wgpu::{BufferAddress, CommandBuffer, Queue, COPY_BUFFER_ALIGNMENT};
 
 #[derive(Clone, Debug)]
 pub struct AsyncQueue {
@@ -37,6 +37,51 @@ impl AsyncQueue {
 
     pub fn device(&self) -> &AsyncDevice {
         &self.device
+    }
+
+    /// Copies as much of one buffer into another buffer as is possible, up to an optional `max_length` parameter.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the length to copy is not a multiple of [`wgpu::COPY_BUFFER_ALIGNMENT`]
+    pub fn copy_max(
+        &self,
+        source: &wgpu::Buffer,
+        source_offset: BufferAddress,
+        destination: &wgpu::Buffer,
+        destination_offset: BufferAddress,
+        max_length: Option<BufferAddress>,
+    ) -> WgpuFuture<()> {
+        let mut copy_command_encoder = self.device.create_command_encoder(&Default::default());
+
+        let mut length = u64::min(
+            source.size() - source_offset,
+            destination.size() - destination_offset,
+        );
+        if let Some(max_length) = max_length {
+            length = u64::max(length, max_length);
+        }
+
+        if length == 0 {
+            // Future that awaits nothing
+            let dud_future = self.device.do_async(|callback| callback(()));
+            return dud_future;
+        }
+
+        debug_assert_eq!(
+            length % COPY_BUFFER_ALIGNMENT,
+            0,
+            "smaller buffer size must be a multiple of COPY_BUFFER_ALIGNMENT"
+        );
+
+        copy_command_encoder.copy_buffer_to_buffer(
+            source,
+            source_offset,
+            destination,
+            destination_offset,
+            length,
+        );
+        self.submit(vec![copy_command_encoder.finish()])
     }
 }
 

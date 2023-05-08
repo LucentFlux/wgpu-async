@@ -220,7 +220,11 @@ impl AsyncDevice {
         desc: &BufferDescriptor<'a>,
     ) -> AsyncBuffer {
         let buffer = self.device.create_buffer(desc);
-        AsyncBuffer::new(self.clone(), buffer)
+        AsyncBuffer {
+            label: desc.label.map(str::to_owned),
+            device: self.clone(),
+            buffer,
+        }
     }
 
     /// Shorthand for [`AsyncDevice::create_buffer`] that can't fail and that doesn't need
@@ -236,7 +240,11 @@ impl AsyncDevice {
             usage,
             mapped_at_creation: false,
         });
-        AsyncBuffer::new(self.clone(), buffer)
+        AsyncBuffer {
+            label: label.map(str::to_owned),
+            device: self.clone(),
+            buffer,
+        }
     }
 }
 
