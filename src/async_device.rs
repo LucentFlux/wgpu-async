@@ -1,5 +1,5 @@
 use crate::AsyncBuffer;
-use crate::{wgpu_future::PollLoop, WgpuFuture};
+use crate::WgpuFuture;
 use std::ops::Deref;
 use std::sync::Arc;
 use wgpu::Device;
@@ -9,13 +9,15 @@ use wgpu::Device;
 #[derive(Clone, Debug)]
 pub struct AsyncDevice {
     device: Arc<Device>,
-    poll_loop: Arc<PollLoop>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) poll_loop: Arc<crate::wgpu_future::PollLoop>,
 }
 
 impl AsyncDevice {
     pub(crate) fn new(device: Arc<Device>) -> Self {
         Self {
-            poll_loop: Arc::new(PollLoop::new(device.clone())),
+            #[cfg(not(target_arch = "wasm32"))]
+            poll_loop: Arc::new(crate::wgpu_future::PollLoop::new(device.clone())),
             device,
         }
     }
@@ -42,7 +44,7 @@ impl AsyncDevice {
         F: FnOnce(Box<dyn FnOnce(R) + Send>),
         R: Send + 'static,
     {
-        let future = WgpuFuture::new(self.device.clone(), self.poll_loop.clone());
+        let future = WgpuFuture::new(self.clone());
         f(future.callback());
         future
     }
