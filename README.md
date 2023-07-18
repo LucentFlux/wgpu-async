@@ -24,6 +24,20 @@ This crate adds a global poll loop thread on non-WASM platforms that can be used
 
 Note that this crate does not aim to improve the performance of anything, and fast applications should reduce CPU-GPU communication and synchronisation as much as possible, irrespective of the paradigm used.
 
+## Common Pitfall
+
+Due to the polling thread running both intermittently and globaly, independently from other parts of your code, it is possible that using this library may mask errors when performing operations that must be awaited. For example, the following code *should* deadlock:
+
+```rust compile_fail
+// BAD CODE - DON'T DO THIS
+let (sender, receiver) = flume::bounded(1);
+let mapping = wgpu::Buffer::slice(buffer, ..).map_async(.., |_| sender.send(()));
+// ERROR: Poll not called, so buffer will never map, so recv will never complete.
+receiver.recv().unwrap();
+```
+
+However with this library, the call to `map_async` might eventually go through (if you are using futures elsewhere), but in an unknown amount of time, causing possibly huge performance losses. It is assumed that those performance losses will be noticable enough that the bug will be found, but you should be aware that use of this crate has the potential to hide deadlocks behind performance hits.
+
 ## Usage
 
 To do things in an `async` way, your `wgpu::Device` and `wgpu::Queue` need to be wrapped in async smart-pointer versions. These implement `Deref<Device>` and `Deref<Queue>`, so can be used as a slot-in replacement for existing wgpu code. 
