@@ -17,12 +17,12 @@ let result = wgpu.do_something().await;
 Or, if we still wanted a callback:
 
 ```rust compile_fail
-wgpu.do_something().then(|result| { /* Handle results */ });
+wgpu.do_something().then(|result| { /* Handle results */ }).await;
 ```
 
 This crate adds a global poll loop thread on non-WASM platforms that can be used to create a `WgpuFuture` holding the completion of a task. The poll loop is conservative, parking itself when no futures are waiting on it, meaining that this crate adds little to no overhead in changing paradigms.
 
-Note that this crate does not aim to improve the performance of anything, and fast applications should reduce CPU-GPU communication and synchronisation as much as possible, irrespective of the functionality provided by this crate.
+Note that this crate does not aim to improve the performance of anything, and fast applications should reduce CPU-GPU communication and synchronisation as much as possible, irrespective of the paradigm used.
 
 ## Usage
 
@@ -63,7 +63,7 @@ Then you can use shadowed `wgpu` methods with the exact same signatures, but wit
 queue.submit(&[/* commands */]).await; // An awaitable `Queue::submit`!
 ```
 
-Just like their `wgpu` counterparts, these methods begin their work on the GPU immediately. However the device won't begin to be polled until the future is awaited.
+Just like their base `wgpu` counterparts, these methods begin their work on the GPU immediately. However the device won't begin to be polled until the future is awaited.
 
 You can also convert any non-shadowed callback-and-poll method to an async one using `AsyncDevice::do_async`:
 
