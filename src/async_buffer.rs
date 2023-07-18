@@ -1,52 +1,30 @@
-use crate::{async_device::AsyncDevice, AsyncQueue, OutOfMemoryError};
-use futures::{Future, FutureExt};
+use crate::{async_device::AsyncDevice, WgpuFuture};
 use std::ops::{Deref, DerefMut, RangeBounds};
-use wgpu::{Buffer, BufferAddress, BufferAsyncError, BufferSlice, MapMode};
+use wgpu::{BufferAddress, BufferAsyncError};
 
+/// A wrapper around a [`wgpu::Buffer`] which shadows some methods to allow for async
+/// mapping using Rust's `async` API.
 #[derive(Debug)]
 pub struct AsyncBuffer
 where
     Self: Send,
 {
-    pub(crate) label: Option<String>,
     pub(crate) device: AsyncDevice,
-    pub(crate) buffer: Buffer,
+    pub(crate) buffer: wgpu::Buffer,
 }
 
 impl AsyncBuffer {
-    /// Maps this buffer, in the same way a call to `buffer.slice(...).map_async(mode, ...)` would,
-    /// except does so asynchronously, and returns a future that can be awaited to get the mapped slice.
-    pub fn map_slice<'a, S: RangeBounds<BufferAddress>>(
-        &'a self,
-        bounds: S,
-        mode: MapMode,
-    ) -> impl Future<Output = Result<BufferSlice<'a>, BufferAsyncError>> + Send + 'a {
-        let slice = self.buffer.slice(bounds);
-
-        self.device
-            .do_async(|callback| slice.map_async(mode, callback))
-            .map(move |v| v.map(|_| slice))
-    }
-
-    /// A descriptor that can be used to create a buffer exactly like this one
-    pub fn descriptor(&self) -> wgpu::BufferDescriptor {
-        wgpu::BufferDescriptor {
-            label: self.label.as_ref().map(String::as_str),
-            size: self.buffer.size(),
-            usage: self.buffer.usage(),
-            mapped_at_creation: false,
+    /// Takes a slice of this buffer, in the same way a call to [`wgpu::Buffer::slice`] would,
+    /// except wraps the result in an [`AsyncBufferSlice`] so that the `map_async` method can be
+    /// awaited.
+    pub fn slice<'a, S: RangeBounds<BufferAddress>>(&'a self, bounds: S) -> AsyncBufferSlice<'a> {
+        let buffer_slice = self.buffer.slice(bounds);
+        AsyncBufferSlice {
+            device: self.device.clone(),
+            buffer_slice,
         }
     }
-
-    /// Like the std function `Clone`, but async because we're chatting to the GPU
-    pub async fn try_duplicate(&self, queue: &AsyncQueue) -> Result<Self, OutOfMemoryError> {
-        let buffer = self.device.create_buffer(&self.descriptor()).await?;
-        queue.copy_max(self, 0, &buffer, 0, None).await;
-        Ok(buffer)
-    }
 }
-
-// We're a smart pointer. Let everyone access our inner device.
 impl Deref for AsyncBuffer {
     type Target = wgpu::Buffer;
 
@@ -54,9 +32,71 @@ impl Deref for AsyncBuffer {
         &self.buffer
     }
 }
-
 impl DerefMut for AsyncBuffer {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.buffer
+    }
+}
+impl<T> AsRef<T> for AsyncBuffer
+where
+    T: ?Sized,
+    <AsyncBuffer as Deref>::Target: AsRef<T>,
+{
+    fn as_ref(&self) -> &T {
+        self.deref().as_ref()
+    }
+}
+impl<T> AsMut<T> for AsyncBuffer
+where
+    <AsyncBuffer as Deref>::Target: AsMut<T>,
+{
+    fn as_mut(&mut self) -> &mut T {
+        self.deref_mut().as_mut()
+    }
+}
+
+/// A smart-pointer wrapper around a [`wgpu::BufferSlice`], offering a `map_async` method than can be `await`ed.
+#[derive(Debug)]
+pub struct AsyncBufferSlice<'a>
+where
+    Self: Send,
+{
+    device: AsyncDevice,
+    buffer_slice: wgpu::BufferSlice<'a>,
+}
+impl<'a> AsyncBufferSlice<'a> {
+    /// An awaitable version of [`wgpu::Buffer::map_async`].
+    pub fn map_async(&self, mode: wgpu::MapMode) -> WgpuFuture<Result<(), BufferAsyncError>> {
+        self.device
+            .do_async(|callback| self.buffer_slice.map_async(mode, callback))
+    }
+}
+impl<'a> Deref for AsyncBufferSlice<'a> {
+    type Target = wgpu::BufferSlice<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.buffer_slice
+    }
+}
+impl<'a> DerefMut for AsyncBufferSlice<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.buffer_slice
+    }
+}
+impl<'a, T> AsRef<T> for AsyncBufferSlice<'a>
+where
+    T: ?Sized,
+    <AsyncBufferSlice<'a> as Deref>::Target: AsRef<T>,
+{
+    fn as_ref(&self) -> &T {
+        self.deref().as_ref()
+    }
+}
+impl<'a, T> AsMut<T> for AsyncBufferSlice<'a>
+where
+    <AsyncBufferSlice<'a> as Deref>::Target: AsMut<T>,
+{
+    fn as_mut(&mut self) -> &mut T {
+        self.deref_mut().as_mut()
     }
 }
