@@ -1,6 +1,6 @@
 # WGPU-Async
 
-Wgpu offers some `async` methods when initialising adapters and devices, but during program execution much of the timing between the CPU and GPU is managed through callbacks and polling. A common pattern is to do something like the following:
+[WGPU](https://github.com/gfx-rs/wgpu) offers some `async` methods when initialising adapters and devices, but during program execution much of the timing between the CPU and GPU is managed through callbacks and polling. A common pattern is to do something like the following:
 
 ```rust compile_fail
 wgpu.do_something();

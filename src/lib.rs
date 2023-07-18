@@ -65,6 +65,15 @@ pub use wgpu_future::WgpuFuture;
 ///     Arc::clone(&device),
 ///     Arc::clone(&queue)
 /// );
+///
+/// // Then we can do some async-enabled things:
+/// let async_buffer = async_device.create_buffer(&wgpu::BufferDescriptor {
+///     label: None,
+///     size: 8192,
+///     usage: wgpu::BufferUsages::MAP_READ,
+///     mapped_at_creation: false,
+/// });
+/// async_buffer.slice(..).map_async(wgpu::MapMode::Read).await; // New await functionality!
 /// # })
 /// ```
 pub fn wrap(device: Arc<wgpu::Device>, queue: Arc<wgpu::Queue>) -> (AsyncDevice, AsyncQueue) {

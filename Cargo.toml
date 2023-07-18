@@ -1,10 +1,18 @@
 [package]
 name = "wgpu-async"
-version = "0.1.0"
+version = "0.16.2"
 edition = "2021"
+license = "MIT"
+description = "Converts some WGPU callback methods to async methods."
+homepage = "https://github.com/LucentFlux/wgpu-async"
+repository = "https://github.com/LucentFlux/wgpu-async"
+readme = "README.md"
+keywords = ["async", "wasm", "wgpu", "utility"]
+categories = ["asynchronous", "rendering"]
+include = ["/Cargo.toml", "/LICENSE", "/README.md", "/src/**"]
 
 [dependencies]
-wgpu = "0.16"
+wgpu = "0.16.2"
 
 [dev-dependencies]
 pollster = "0.1"
