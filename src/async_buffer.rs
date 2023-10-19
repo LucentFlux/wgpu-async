@@ -7,7 +7,7 @@ use wgpu::{BufferAddress, BufferAsyncError};
 #[derive(Debug)]
 pub struct AsyncBuffer
 where
-    Self: wgpu::WasmNotSend,
+    Self: Send,
 {
     pub(crate) device: AsyncDevice,
     pub(crate) buffer: wgpu::Buffer,
@@ -59,7 +59,7 @@ where
 #[derive(Debug)]
 pub struct AsyncBufferSlice<'a>
 where
-    Self: wgpu::WasmNotSend,
+    Self: Send,
 {
     device: AsyncDevice,
     buffer_slice: wgpu::BufferSlice<'a>,
