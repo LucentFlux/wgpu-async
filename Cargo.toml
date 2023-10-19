@@ -12,7 +12,7 @@ categories = ["asynchronous", "rendering"]
 include = ["/Cargo.toml", "/LICENSE", "/README.md", "/src/**"]
 
 [dependencies]
-wgpu = "0.16.2"
+wgpu = "0.17.1"
 
 [dev-dependencies]
 pollster = "0.1"
