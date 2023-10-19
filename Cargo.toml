@@ -15,4 +15,4 @@ include = ["/Cargo.toml", "/LICENSE", "/README.md", "/src/**"]
 wgpu = "0.16.2"
 
 [dev-dependencies]
-pollster = "0.1"
+pollster = "0.3"
