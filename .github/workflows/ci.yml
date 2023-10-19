@@ -1,0 +1,19 @@
+jobs:
+  native_build:
+    name: Native build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cargo check
+  web_build:
+    name: Web build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+      - run: RUSTFLAGS="--cfg=web_sys_unstable_apis" cargo +nightly check --target wasm32-unknown-unknown
