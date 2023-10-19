@@ -6,7 +6,7 @@
 
 [WGPU](https://github.com/gfx-rs/wgpu) offers some `async` methods when initialising adapters and devices, but during program execution much of the timing between the CPU and GPU is managed through callbacks and polling. A common pattern is to do something like the following:
 
-```rust no_run
+```rust ignore
 wgpu.do_something();
 wgpu.on_something_done(|result| { /* Handle results */ });
 wgpu.poll();
@@ -14,13 +14,13 @@ wgpu.poll();
 
 This is a very JavaScript-esque pattern, while in Rust we might expect to write code that looks more like:
 
-```rust no_run
+```rust ignore
 let result = wgpu.do_something().await;
 ```
 
 Or, if we still wanted a callback:
 
-```rust no_run
+```rust ignore
 wgpu.do_something().then(|result| { /* Handle results */ }).await;
 ```
 
@@ -46,7 +46,7 @@ However with this library, the call to `map_async` might eventually go through (
 
 To do things in an `async` way, your `wgpu::Device` and `wgpu::Queue` need to be wrapped in async smart-pointer versions. These implement `Deref<Device>` and `Deref<Queue>`, so can be used as a slot-in replacement for existing wgpu code. 
 
-```rust no_run
+```rust ignore
 // Create a device and queue like normal
 let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
 
@@ -77,7 +77,7 @@ let (device, queue) = wgpu_async::wrap(Arc::new(device), Arc::new(queue));
 
 Then you can use shadowed `wgpu` methods with the exact same signatures, but with extra `async`-ness:
 
-```rust no_run
+```rust ignore
 queue.submit(&[/* commands */]).await; // An awaitable `Queue::submit`!
 ```
 
@@ -85,7 +85,7 @@ Just like their base `wgpu` counterparts, these methods begin their work on the 
 
 You can also convert any non-shadowed callback-and-poll method to an async one using `AsyncDevice::do_async`:
 
-```rust no_run
+```rust ignore
 wgpu.do_something();
 let future = device.do_async(move |callback| {
     wgpu.on_something_done(|result| callback(result));
