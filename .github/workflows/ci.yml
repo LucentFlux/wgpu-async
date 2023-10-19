@@ -1,4 +1,5 @@
-on: push
+name: CI
+on: [push, pull_request]
 
 jobs:
   native_build:
@@ -10,6 +11,7 @@ jobs:
         with:
           toolchain: stable
       - run: cargo check
+      
   web_build:
     name: Web build
     runs-on: ubuntu-latest
@@ -21,3 +23,9 @@ jobs:
           target: wasm32-unknown-unknown
           components: rust-src
       - run: RUSTFLAGS="--cfg=web_sys_unstable_apis" cargo +nightly check -Zbuild-std --target wasm32-unknown-unknown
+
+  cargo-deny:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - uses: EmbarkStudios/cargo-deny-action@v1
