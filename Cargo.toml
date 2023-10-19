@@ -1,6 +1,6 @@
 [package]
 name = "wgpu-async"
-version = "0.16.4"
+version = "0.17.1"
 edition = "2021"
 license = "MIT"
 description = "Converts some WGPU callback methods to async methods."
@@ -12,7 +12,7 @@ categories = ["asynchronous", "rendering"]
 include = ["/Cargo.toml", "/LICENSE", "/README.md", "/src/**"]
 
 [dependencies]
-wgpu = "0.16.2"
+wgpu = "0.17.1"
 
 [dev-dependencies]
 pollster = "0.3"
