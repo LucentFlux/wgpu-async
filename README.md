@@ -1,8 +1,12 @@
 # WGPU-Async
 
+[![crates.io](https://img.shields.io/crates/v/wgpu-async.svg)](https://crates.io/crates/wgpu-async)
+[![docs.rs](https://img.shields.io/docsrs/wgpu-async)](https://docs.rs/wgpu-async/latest/wgpu_async/)
+[![crates.io](https://img.shields.io/crates/l/wgpu-async.svg)](https://github.com/LucentFlux/wgpu-async/blob/main/LICENSE)
+
 [WGPU](https://github.com/gfx-rs/wgpu) offers some `async` methods when initialising adapters and devices, but during program execution much of the timing between the CPU and GPU is managed through callbacks and polling. A common pattern is to do something like the following:
 
-```rust compile_fail
+```rust no_run
 wgpu.do_something();
 wgpu.on_something_done(|result| { /* Handle results */ });
 wgpu.poll();
@@ -10,13 +14,13 @@ wgpu.poll();
 
 This is a very JavaScript-esque pattern, while in Rust we might expect to write code that looks more like:
 
-```rust compile_fail
+```rust no_run
 let result = wgpu.do_something().await;
 ```
 
 Or, if we still wanted a callback:
 
-```rust compile_fail
+```rust no_run
 wgpu.do_something().then(|result| { /* Handle results */ }).await;
 ```
 
@@ -42,7 +46,7 @@ However with this library, the call to `map_async` might eventually go through (
 
 To do things in an `async` way, your `wgpu::Device` and `wgpu::Queue` need to be wrapped in async smart-pointer versions. These implement `Deref<Device>` and `Deref<Queue>`, so can be used as a slot-in replacement for existing wgpu code. 
 
-```rust compile_fail
+```rust no_run
 // Create a device and queue like normal
 let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
 
@@ -73,7 +77,7 @@ let (device, queue) = wgpu_async::wrap(Arc::new(device), Arc::new(queue));
 
 Then you can use shadowed `wgpu` methods with the exact same signatures, but with extra `async`-ness:
 
-```rust compile_fail
+```rust no_run
 queue.submit(&[/* commands */]).await; // An awaitable `Queue::submit`!
 ```
 
@@ -81,7 +85,7 @@ Just like their base `wgpu` counterparts, these methods begin their work on the 
 
 You can also convert any non-shadowed callback-and-poll method to an async one using `AsyncDevice::do_async`:
 
-```rust compile_fail
+```rust no_run
 wgpu.do_something();
 let future = device.do_async(move |callback| {
     wgpu.on_something_done(|result| callback(result));
