@@ -4,12 +4,6 @@ unmaintained = "deny"
 notice = "deny"
 unsound = "deny"
 
-[bans]
-multiple-versions = "deny"
-skip = [
-	{ name = "wgpu" }
-]
-
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
