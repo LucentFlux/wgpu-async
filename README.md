@@ -4,6 +4,12 @@
 [![docs.rs](https://img.shields.io/docsrs/wgpu-async)](https://docs.rs/wgpu-async/latest/wgpu_async/)
 [![crates.io](https://img.shields.io/crates/l/wgpu-async.svg)](https://github.com/LucentFlux/wgpu-async/blob/main/LICENSE)
 
+This crate adds a global poll loop thread on non-WASM platforms that can be used to create a `WgpuFuture` holding the completion of a task. The poll loop is conservative, parking itself when no futures are waiting on it, meaning that this crate adds as little overhead as possible in changing paradigms.
+
+Note that this crate does not aim to improve the performance of anything, and fast applications should reduce CPU-GPU communication and synchronisation as much as possible, irrespective of the paradigm used and platform targetted. In fact, when used incorrectly, this crate can drastically decrease performance, as shown under the [Common Pitfall](#Common-Pitfall) section. This crate is intended for use when prototyping or testing, when parity between native and web targets is more important than speed.
+
+## Motivation
+
 [WGPU](https://github.com/gfx-rs/wgpu) offers some `async` methods when initialising adapters and devices, but during program execution much of the timing between the CPU and GPU is managed through callbacks and polling. A common pattern is to do something like the following:
 
 ```rust ignore
@@ -24,9 +30,7 @@ Or, if we still wanted a callback:
 wgpu.do_something().then(|result| { /* Handle results */ }).await;
 ```
 
-This crate adds a global poll loop thread on non-WASM platforms that can be used to create a `WgpuFuture` holding the completion of a task. The poll loop is conservative, parking itself when no futures are waiting on it, meaining that this crate adds little to no overhead in changing paradigms.
-
-Note that this crate does not aim to improve the performance of anything, and fast applications should reduce CPU-GPU communication and synchronisation as much as possible, irrespective of the paradigm used.
+Also, on Web targets we find that the call to `poll` is entirely unnecessary, increasing conceptual complexity in programs which target both Native and Web. This crate unifies the two under a common `async/await` API.
 
 ## Common Pitfall
 

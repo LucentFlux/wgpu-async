@@ -1,6 +1,15 @@
 name: CI
 on: [push, pull_request]
 
+env:
+  CARGO_INCREMENTAL: false
+  CARGO_TERM_COLOR: always
+  WGPU_DX12_COMPILER: dxc
+  RUST_LOG: info
+  RUST_BACKTRACE: full
+  RUSTFLAGS: --cfg=web_sys_unstable_apis
+  RUSTDOCFLAGS: -Dwarnings
+
 jobs:
   native_build:
     name: Native build
@@ -29,3 +38,44 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: EmbarkStudios/cargo-deny-action@v1
+
+  native_test:
+    name: Native test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install llvmpipe, lavapipe, vulkan sdk
+        if: matrix.os == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          set -e
+
+          sudo apt-get update -y -qq
+
+          # vulkan sdk
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+
+          sudo add-apt-repository ppa:kisak/kisak-mesa
+
+          sudo apt-get update
+          sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev vulkan-sdk mesa-vulkan-drivers
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -e
+
+          cargo test --no-fail-fast
+
+      - name: Run release tests
+        shell: bash
+        run: |
+          set -e
+
+          cargo test --release --no-fail-fast
+
