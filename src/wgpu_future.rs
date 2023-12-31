@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::ops::DerefMut;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 use std::task::{Context, Poll, Waker};
 use wgpu::Maintain;
 
@@ -30,7 +30,7 @@ pub(crate) struct PollLoop {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl PollLoop {
-    pub(crate) fn new(device: Arc<wgpu::Device>) -> Self {
+    pub(crate) fn new(device: Weak<wgpu::Device>) -> Self {
         let has_work = Arc::new(AtomicUsize::new(0));
         let is_done = Arc::new(AtomicBool::new(false));
         let locally_has_work = has_work.clone();
@@ -41,7 +41,10 @@ impl PollLoop {
             handle: std::thread::spawn(move || {
                 while !locally_is_done.load(Ordering::Acquire) {
                     while locally_has_work.load(Ordering::Acquire) != 0 {
-                        device.poll(Maintain::Wait);
+                        match device.upgrade() {
+                            None => return, // If all other references to the device are dropped, don't keep hold of the device here
+                            Some(device) => device.poll(Maintain::Wait),
+                        };
                     }
 
                     std::thread::park();
