@@ -8,9 +8,11 @@ use wgpu::Device;
 /// methods to be made async.
 #[derive(Clone, Debug)]
 pub struct AsyncDevice {
-    device: Arc<Device>,
+    // PollLoop must be dropped before device to ensure device is not dropped on poll thread
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) poll_loop: Arc<crate::wgpu_future::PollLoop>,
+
+    device: Arc<Device>,
 }
 
 impl AsyncDevice {

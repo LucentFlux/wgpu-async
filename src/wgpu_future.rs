@@ -10,11 +10,11 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use crate::AsyncDevice;
 
-/// Polls the device whilever a future says there is something to poll.
+/// Polls the device while-ever a future says there is something to poll.
 ///
 /// This objects corresponds to a thread that parks itself when no futures are
 /// waiting on it, and then calls `device.poll(Maintain::Wait)` repeatedly to block
-/// whilever it has work that a future is waiting on.
+/// while-ever it has work that a future is waiting on.
 ///
 /// The thread dies when this object is dropped, and when the GPU has finished processing
 /// all active futures.
@@ -25,7 +25,7 @@ pub(crate) struct PollLoop {
     /// When this is 0, the thread can park itself.
     has_work: Arc<AtomicUsize>,
     is_done: Arc<AtomicBool>,
-    handle: std::thread::JoinHandle<()>,
+    handle: Option<std::thread::JoinHandle<()>>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -38,18 +38,22 @@ impl PollLoop {
         Self {
             has_work,
             is_done,
-            handle: std::thread::spawn(move || {
+            handle: Some(std::thread::spawn(move || {
                 while !locally_is_done.load(Ordering::Acquire) {
                     while locally_has_work.load(Ordering::Acquire) != 0 {
                         match device.upgrade() {
-                            None => return, // If all other references to the device are dropped, don't keep hold of the device here
+                            None => {
+                                // If all other references to the device are dropped, don't keep hold of the device here
+                                locally_is_done.store(true, Ordering::Release);
+                                return;
+                            }
                             Some(device) => device.poll(Maintain::Wait),
                         };
                     }
 
                     std::thread::park();
                 }
-            }),
+            })),
         }
     }
 
@@ -60,7 +64,11 @@ impl PollLoop {
             prev < usize::MAX,
             "cannot have more than `usize::MAX` outstanding operations on the GPU"
         );
-        self.handle.thread().unpark();
+        self.handle
+            .as_ref()
+            .expect("handle set to None on drop")
+            .thread()
+            .unpark();
         PollToken {
             work_count: Arc::clone(&self.has_work),
         }
@@ -71,7 +79,10 @@ impl PollLoop {
 impl Drop for PollLoop {
     fn drop(&mut self) {
         self.is_done.store(true, Ordering::Release);
-        self.handle.thread().unpark()
+
+        let handle = self.handle.take().expect("PollLoop dropped twice");
+        handle.thread().unpark();
+        handle.join().expect("PollLoop thread panicked");
     }
 }
 
