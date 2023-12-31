@@ -49,7 +49,6 @@ jobs:
           toolchain: stable
 
       - name: Install llvmpipe, lavapipe, vulkan sdk
-        if: matrix.os == 'ubuntu-22.04'
         shell: bash
         run: |
           set -e
