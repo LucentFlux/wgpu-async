@@ -30,8 +30,8 @@ fn setup() -> (AsyncDevice, AsyncQueue) {
             )
             .await
             .expect("missing device");
-        let (device, queue) = (Arc::new(device), Arc::new(queue));
-        wgpu_async::wrap(Arc::clone(&device), Arc::clone(&queue))
+
+        wgpu_async::wrap(Arc::new(device), Arc::new(queue))
     })
 }
 

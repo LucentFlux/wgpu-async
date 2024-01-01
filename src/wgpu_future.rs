@@ -53,6 +53,7 @@ impl PollLoop {
 
                     std::thread::park();
                 }
+                drop(device);
             })),
         }
     }
