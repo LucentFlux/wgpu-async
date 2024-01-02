@@ -1,6 +1,6 @@
 [package]
 name = "wgpu-async"
-version = "0.18.0"
+version = "0.18.1"
 edition = "2021"
 license = "MIT"
 description = "Converts some WGPU callback methods to async methods."
