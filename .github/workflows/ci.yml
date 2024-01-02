@@ -62,6 +62,11 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install cargo-nextest and cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest,cargo-llvm-cov
+
       - name: Install llvmpipe, lavapipe, vulkan sdk
         shell: bash
         run: |
@@ -83,12 +88,12 @@ jobs:
         run: |
           set -e
 
-          cargo test --no-fail-fast
+          cargo llvm-cov --no-cfg-coverage --no-report nextest --no-fail-fast
 
       - name: Run release tests
         shell: bash
         run: |
           set -e
 
-          cargo test --release --no-fail-fast
+          cargo nextest run --no-fail-fast --release --all-features
 
