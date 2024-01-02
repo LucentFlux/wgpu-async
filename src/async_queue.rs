@@ -19,7 +19,7 @@ impl AsyncQueue {
     ///
     /// Just like [`wgpu::Queue::submit`], a call to this method starts the given work immediately,
     /// however this method returns a future that can be awaited giving the completion of the submitted work.
-    pub fn submit<I: IntoIterator<Item = CommandBuffer> + Send>(
+    pub fn submit<I: IntoIterator<Item = CommandBuffer>>(
         &self,
         command_buffers: I,
     ) -> WgpuFuture<()> {

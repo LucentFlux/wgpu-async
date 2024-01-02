@@ -31,7 +31,7 @@ jobs:
           toolchain: nightly
           target: wasm32-unknown-unknown
           components: rust-src
-      - run: RUSTFLAGS="--cfg=web_sys_unstable_apis" cargo +nightly check -Zbuild-std --target wasm32-unknown-unknown
+      - run: cargo +nightly check -Zbuild-std --target wasm32-unknown-unknown
 
   cargo-deny:
     runs-on: ubuntu-22.04
@@ -39,9 +39,23 @@ jobs:
     - uses: actions/checkout@v3
     - uses: EmbarkStudios/cargo-deny-action@v1
 
+  web_test:
+    name: Web test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - name: execute tests
+        run: wasm-pack test --headless --chrome
+
   native_test:
     name: Native test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
