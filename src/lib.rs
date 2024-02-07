@@ -50,8 +50,8 @@ pub use wgpu_future::WgpuFuture;
 /// let (device, queue) = adapter
 ///     .request_device(
 ///         &wgpu::DeviceDescriptor {
-///             features: wgpu::Features::empty(),
-///             limits: adapter.limits(),
+///             required_features: wgpu::Features::empty(),
+///             required_limits: adapter.limits(),
 ///             label: None,
 ///         },
 ///         None,
