@@ -33,6 +33,7 @@ async fn setup() -> (AsyncDevice, AsyncQueue) {
                 required_features: wgpu::Features::empty(),
                 required_limits: adapter.limits(),
                 label: None,
+                memory_hints: wgpu::MemoryHints::default(),
             },
             None,
         )
