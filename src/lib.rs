@@ -80,5 +80,5 @@ pub fn wrap(device: Arc<wgpu::Device>, queue: Arc<wgpu::Queue>) -> (AsyncDevice,
     let device = AsyncDevice::new(device);
     let queue = AsyncQueue::new(device.clone(), queue);
 
-    return (device, queue);
+    (device, queue)
 }

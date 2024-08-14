@@ -2,6 +2,7 @@ use crate::AsyncBuffer;
 use crate::WgpuFuture;
 use std::ops::Deref;
 use std::sync::Arc;
+use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::Device;
 
 /// A wrapper around a [`wgpu::Device`] which shadows some methods to allow for callback-and-poll
@@ -56,6 +57,14 @@ impl AsyncDevice {
         AsyncBuffer {
             device: self.clone(),
             buffer: self.device.create_buffer(desc),
+        }
+    }
+
+    /// Creates an [`AsyncBuffer`] with data to initialize it.
+    pub fn create_buffer_init(&self, desc: &BufferInitDescriptor) -> AsyncBuffer {
+        AsyncBuffer {
+            device: self.clone(),
+            buffer: self.device.create_buffer_init(desc),
         }
     }
 }
