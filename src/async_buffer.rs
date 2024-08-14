@@ -17,7 +17,7 @@ impl AsyncBuffer {
     /// Takes a slice of this buffer, in the same way a call to [`wgpu::Buffer::slice`] would,
     /// except wraps the result in an [`AsyncBufferSlice`] so that the `map_async` method can be
     /// awaited.
-    pub fn slice<'a, S: RangeBounds<BufferAddress>>(&'a self, bounds: S) -> AsyncBufferSlice<'a> {
+    pub fn slice<S: RangeBounds<BufferAddress>>(&self, bounds: S) -> AsyncBufferSlice<'_> {
         let buffer_slice = self.buffer.slice(bounds);
         AsyncBufferSlice {
             device: self.device.clone(),

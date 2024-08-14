@@ -1,5 +1,7 @@
 name: CI
-on: [push, pull_request]
+on:
+  pull_request:
+    branches: [master]
 
 env:
   CARGO_INCREMENTAL: false
@@ -11,8 +13,8 @@ env:
   RUSTDOCFLAGS: -Dwarnings
 
 jobs:
-  native_build:
-    name: Native build
+  cargo-check:
+    name: Cargo check native
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -21,8 +23,8 @@ jobs:
           toolchain: stable
       - run: cargo check
       
-  web_build:
-    name: Web build
+  web-check:
+    name: Cargo check web
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -38,6 +40,33 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: EmbarkStudios/cargo-deny-action@v1
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: clippy
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+
+  clippy-web:
+    name: Clippy web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+          target: wasm32-unknown-unknown
+          components: clippy, rust-src
+      - run: cargo +nightly clippy --all-targets --all-features  -Z build-std=std,panic_abort --target wasm32-unknown-unknown -- -D warnings
 
   web_test:
     name: Web test
