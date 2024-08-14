@@ -1,12 +1,15 @@
 use std::future::Future;
 use std::ops::DerefMut;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
 use wgpu::Maintain;
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{
+    atomic::{AtomicBool, AtomicUsize, Ordering},
+    Weak,
+};
 
 use crate::AsyncDevice;
 
@@ -33,8 +36,8 @@ impl PollLoop {
     pub(crate) fn new(device: Weak<wgpu::Device>) -> Self {
         let has_work = Arc::new(AtomicUsize::new(0));
         let is_done = Arc::new(AtomicBool::new(false));
-        let locally_has_work = has_work.clone();
-        let locally_is_done = is_done.clone();
+        let locally_has_work = Arc::clone(&has_work);
+        let locally_is_done = Arc::clone(&is_done);
         Self {
             has_work,
             is_done,
@@ -139,7 +142,7 @@ impl<T: Send + 'static> WgpuFuture<T> {
 
     /// Generates a callback function for this future that wakes the waker and sets the shared state.
     pub(crate) fn callback(&self) -> Box<dyn FnOnce(T) + Send> {
-        let shared_state = self.state.clone();
+        let shared_state = Arc::clone(&self.state);
         return Box::new(move |res: T| {
             let mut lock = shared_state
                 .lock()
@@ -190,6 +193,6 @@ impl<T> Future for WgpuFuture<T> {
             self.poll_token = Some(self.device.poll_loop.start_polling());
         }
 
-        return Poll::Pending;
+        Poll::Pending
     }
 }

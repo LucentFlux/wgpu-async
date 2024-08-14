@@ -1,6 +1,7 @@
 #[cfg(target_arch = "wasm32")]
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 #[cfg(not(target_arch = "wasm32"))]
+#[allow(clippy::single_component_path_imports)]
 use test;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
@@ -37,6 +38,8 @@ async fn setup() -> (AsyncDevice, AsyncQueue) {
         )
         .await
         .expect("missing device");
+    // TODO: Look at swapping to `Rc` on web
+    #[allow(clippy::arc_with_non_send_sync)]
     let (device, queue) = (Arc::new(device), Arc::new(queue));
     wgpu_async::wrap(Arc::clone(&device), Arc::clone(&queue))
 }

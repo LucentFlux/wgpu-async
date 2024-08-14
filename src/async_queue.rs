@@ -23,7 +23,7 @@ impl AsyncQueue {
         &self,
         command_buffers: I,
     ) -> WgpuFuture<()> {
-        let queue_ref = self.queue.clone();
+        let queue_ref = Arc::clone(&self.queue);
 
         queue_ref.submit(command_buffers);
 
