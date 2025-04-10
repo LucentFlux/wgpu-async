@@ -143,7 +143,7 @@ impl<T: Send + 'static> WgpuFuture<T> {
     /// Generates a callback function for this future that wakes the waker and sets the shared state.
     pub(crate) fn callback(&self) -> Box<dyn FnOnce(T) + Send> {
         let shared_state = Arc::clone(&self.state);
-        return Box::new(move |res: T| {
+        Box::new(move |res: T| {
             let mut lock = shared_state
                 .lock()
                 .expect("wgpu future was poisoned on complete");
@@ -153,7 +153,7 @@ impl<T: Send + 'static> WgpuFuture<T> {
             if let Some(waker) = shared_state.waker.take() {
                 waker.wake()
             }
-        });
+        })
     }
 }
 

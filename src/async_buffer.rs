@@ -64,7 +64,7 @@ where
     device: AsyncDevice,
     buffer_slice: wgpu::BufferSlice<'a>,
 }
-impl<'a> AsyncBufferSlice<'a> {
+impl AsyncBufferSlice<'_> {
     /// An awaitable version of [`wgpu::Buffer::map_async`].
     pub fn map_async(&self, mode: wgpu::MapMode) -> WgpuFuture<Result<(), BufferAsyncError>> {
         self.device
@@ -78,23 +78,23 @@ impl<'a> Deref for AsyncBufferSlice<'a> {
         &self.buffer_slice
     }
 }
-impl<'a> DerefMut for AsyncBufferSlice<'a> {
+impl DerefMut for AsyncBufferSlice<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.buffer_slice
     }
 }
-impl<'a, T> AsRef<T> for AsyncBufferSlice<'a>
+impl<T> AsRef<T> for AsyncBufferSlice<'_>
 where
     T: ?Sized,
-    <AsyncBufferSlice<'a> as Deref>::Target: AsRef<T>,
+    <Self as Deref>::Target: AsRef<T>,
 {
     fn as_ref(&self) -> &T {
         self.deref().as_ref()
     }
 }
-impl<'a, T> AsMut<T> for AsyncBufferSlice<'a>
+impl<T> AsMut<T> for AsyncBufferSlice<'_>
 where
-    <AsyncBufferSlice<'a> as Deref>::Target: AsMut<T>,
+    <Self as Deref>::Target: AsMut<T>,
 {
     fn as_mut(&mut self) -> &mut T {
         self.deref_mut().as_mut()
