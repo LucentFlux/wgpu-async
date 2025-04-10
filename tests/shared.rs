@@ -18,7 +18,7 @@ fn block_on<F: std::future::Future<Output = ()> + 'static>(f: F) {
 }
 
 async fn setup() -> (AsyncDevice, AsyncQueue) {
-    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+    let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
